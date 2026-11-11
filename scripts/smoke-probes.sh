@@ -20,7 +20,14 @@ _container() { # <服务名>：按核心打的标签找本插件这个服务的�
 }
 
 _login_token() { # 经网关登录 admin，输出访问令牌；失败输出错误
-  local c pw body
+  local c pw body origin
+  # 单跑 data_check 时套件还没备好网页地址：先取一次
+  if [[ -z "${SMOKE_WEB_ORIGIN:-}" ]]; then
+    probes_web_url || { echo "拿不到插件网页地址"; return 1; }
+    origin="$SMOKE_WEB_ORIGIN"
+  else
+    origin="$SMOKE_WEB_ORIGIN"
+  fi
   c="$(_container nodered)" || { echo "找不到 nodered 容器"; return 1; }
   pw="$(docker exec "$c" printenv WONTON_SECRET_ADMIN_PASSWORD)" || { echo "容器里没有 WONTON_SECRET_ADMIN_PASSWORD"; return 1; }
   body="$(curl -fsS -m 15 -b "$SMOKE_JAR" -X POST \
@@ -30,7 +37,7 @@ _login_token() { # 经网关登录 admin，输出访问令牌；失败输出错�
     --data-urlencode 'scope=*' \
     --data-urlencode 'username=admin' \
     --data-urlencode "password=$pw" \
-    "$SMOKE_WEB_ORIGIN/auth/token")" || { echo "登录失败：$body"; return 1; }
+    "$origin/auth/token")" || { echo "登录失败：$body"; return 1; }
   python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])' <<<"$body" || { echo "没有 access_token：$body"; return 1; }
 }
 
@@ -38,6 +45,8 @@ web_assert() { grep -q '<title>Node-RED</title>'; }
 
 identity_check() { # 应用自己的登录换出令牌；/settings 回当前用户，断言认出的是 admin、全权限
   local token settings
+  # $(_login_token) 在子壳里跑，套件的 export 带不回来：网页地址在本壳先备好
+  [[ -n "${SMOKE_WEB_ORIGIN:-}" ]] || probes_web_url || { echo "拿不到插件网页地址"; return 1; }
   token="$(_login_token)" || { echo "$token"; return 1; }
   settings="$(curl -fsS -m 15 -b "$SMOKE_JAR" -H "Authorization: Bearer $token" "$SMOKE_WEB_ORIGIN/settings")" \
     || { echo "带令牌读 /settings 失败"; return 1; }
@@ -47,6 +56,7 @@ identity_check() { # 应用自己的登录换出令牌；/settings 回当前用�
 
 data_write() { # 建一个以随机标记命名的流程页（tab），这是 Node-RED 里用户数据的基本单位
   local token marker flow
+  [[ -n "${SMOKE_WEB_ORIGIN:-}" ]] || probes_web_url || { echo "拿不到插件网页地址"; return 1; }
   token="$(_login_token)" || { echo "$token"; return 1; }
   marker="smoke-$(head -c 4 /dev/urandom | od -An -tx1 | tr -d ' \n')"
   flow="$(printf '{"id":"%s","type":"tab","label":"%s","nodes":[]}' "$marker" "$marker")"
@@ -58,6 +68,7 @@ data_write() { # 建一个以随机标记命名的流程页（tab），这是 No
 
 data_check() { # 读回流程列表，找当初写的那个标记
   local token marker flows
+  [[ -n "${SMOKE_WEB_ORIGIN:-}" ]] || probes_web_url || { echo "拿不到插件网页地址"; return 1; }
   marker="$(cat "$SMOKE_STATE")" || { echo "标记文件读不出来"; return 1; }
   token="$(_login_token)" || { echo "$token"; return 1; }
   flows="$(curl -fsS -m 15 -b "$SMOKE_JAR" -H "Authorization: Bearer $token" "$SMOKE_WEB_ORIGIN/flows")" \

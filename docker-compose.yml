@@ -31,9 +31,6 @@ services:
       HOME: /data
       WONTON_SECRET_ADMIN_PASSWORD: ${WONTON_SECRET_ADMIN_PASSWORD}
       WONTON_SECRET_CREDENTIAL_SECRET: ${WONTON_SECRET_CREDENTIAL_SECRET}
-      # wants 了 x-wonton.mqtt 时核心注入 MQTT 能力地址（还没有提供方时是空串）；
-      # 在 MQTT 节点的服务器一栏填 ${WONTON_X_WONTON_MQTT_URL} 就能用上，见 README。
-      WONTON_X_WONTON_MQTT_URL: ${WONTON_X_WONTON_MQTT_URL:-}
     volumes:
       - ${WONTON_APP_DATA}:/data
     depends_on:
@@ -103,7 +100,6 @@ x-wonton:
     # 安装新的节点（palette）要访问 npm 镜像源；流程里的 HTTP 节点要访问外部服务。
     # Palette installs need the npm mirror; HTTP nodes talk to external services.
     - network.egress
-  wants: [x-wonton.mqtt]
   secrets:
     admin_password:
       generate: { bytes: 24 }
