@@ -1,43 +1,33 @@
-# 云吞插件模板
+# Node-RED
 
-开发流程见[插件开发指南](https://github.com/wontonapp/wonton-docs/blob/main/develop.md)。
+拖方块、连线的流程自动化工具：把家里的设备和消息串成自动流程，比如门铃一响就给手机发消息、定时把温度记录下来。
 
-这是一个能安装的示例插件 `app.example.hello`：使用 nginx 官方镜像显示问候页，经网关的 `sso: proxy` 注入用户名，页面显示“你好，<用户名>”。示例没有应用账号、持久化数据或 MCP 工具。
+装好后打开网页，用户名 `admin`，密码在云吞 App 里这个插件的详情页查看（「管理员密码」一项，点开可见）。
 
-## 示例文件
+## 使用
 
-| 路径 | 内容 |
-| --- | --- |
-| `docker-compose.yml` | 示例清单、nginx 服务和三个 `configs` |
-| `web/default.conf.template` | nginx 配置，启用 SSI 回显用户名并提供健康检查入口；只放行来自核心地址（`${WONTON_CORE_ADDRESS}`）的请求，其余来源 403 |
-| `web/index.html` | 问候页 |
-| `web/tokens.css` | 页面主题变量的后备值 |
-| `tabs/` | 示例主页的应用页面图标 |
-| `screenshots/home.png` | 商店详情页的示例截图 |
-| `scripts/smoke-probes.sh` | 检查真实页面和网关注入身份的插件探针 |
+- **流程**：浏览器里拖节点、连线，点「部署」保存。流程存在应用数据目录的 `flows.json` 里，升级插件不会丢。
+- **安装节点**：菜单 → 节点管理（Manage palette）→ Install。插件申请了出网权限，npm 走数据目录里
+  `.npmrc` 配的国内镜像源（首次启动写入，可自己改）。
+- **智能消息（MQTT）**：MQTT 节点里手填家里的消息服务器地址：拖入「mqtt in」或「mqtt out」节点，双击
+  新建服务器配置，服务器填地址（如局域网里已有消息服务器的 IP），端口一般是 1883。
+  插件申请了出网权限，能访问局域网里已有的消息服务器。
 
-从模板创建自己的插件后，替换示例清单、网页和素材；具体步骤见[写插件](https://github.com/wontonapp/wonton-docs/blob/main/develop.md#写插件)。
+## 安全须知
 
-## 对着别的栈跑探针
+流程里的「函数」（function）节点运行自定义 JavaScript，导入别人的流程等于运行别人的代码——
+只导入自己信得过的流程。网页在云吞网关后面，但插件申请了出网权限，流程里的节点可以访问外部服务。
 
-`probes`、`api`、`session` 按 `.wonton/.env` 的 `WONTON_BASE_DOMAIN` 拼核心地址，`up` 起的栈自己写这个键。插件装进别人的栈、或者对着已有环境排查时，把那套栈的基础域名写进 `.wonton/.env`，不要只按实例名猜地址：实例名只是资源名前缀，网关按 Host 认域名，拼错了会回“没有安装”。
+## 配置
 
-```bash
-WONTON_BASE_DOMAIN=wonton.localhost
-```
+应用的设置文件 `settings.js` 首次启动由插件预置到应用数据目录，之后改动不会被覆盖。管理员账号在
+`adminAuth` 里声明：用户名 `admin`，密码取自核心生成的密钥（详情页可见），每次启动用镜像自带的
+bcryptjs 现算 bcrypt 哈希，文件里不落明文；换密码等于在详情页重置密钥后重启插件。flows.json 的凭据
+加密密钥（`credentialSecret`）同样是核心生成的密钥。
 
-## 核心镜像
-
-检查和冒烟默认用套件里的核心镜像（`ghcr.io/wontonapp/wonton-core:main`）；要固定别的核心镜像，在仓库 Settings → Variables 设 `WONTON_CORE_IMAGE`，手动触发“检查”时填的 `core-image` 输入优先。
-
-## 更新开发套件
-
-```bash
-scripts/dev.sh kit-update
-```
-
-在从模板新建的插件仓库中更新套件；本仓库是套件源头，执行时只提示并退出。版本、可选引用和自定义脚本约定见[开发指南](https://github.com/wontonapp/wonton-docs/blob/main/develop.md#更新开发套件)。
+镜像 `nodered/node-red`（官方多架构），标签与清单列表摘要固定，见 `docker-compose.yml`。
 
 ## 图标
 
-`icon.svg` 是本仓库原创线条图标，按本仓库 MIT 许可证分发，见 [NOTICE](NOTICE)。
+图标取自 Node-RED 上游编辑器图标（CC BY 3.0，作者 Nick O'Leary），按插件规范改为满幅；来源、
+处理方式和商标说明见 [NOTICE](NOTICE)。
